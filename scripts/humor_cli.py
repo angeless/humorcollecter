@@ -88,9 +88,10 @@ class HumorEntry:
             end_pos = matches[i + 1].start() if i + 1 < len(matches) else len(content)
             text = content[start_pos:end_pos].strip()
             
-            # 清理投票标记
+            # 清理投票标记和下一个用户名前缀
             text = re.sub(r'\s*Upvote\s*\d+\s*Downvote\s*Reply\s*', ' ', text)
             text = re.sub(r'\s*More replies\s*', ' ', text)
+            text = re.sub(r'\s*u/\w+\s*avatar\s*', ' ', text)  # 移除下一个用户的avatar标记
             text = text.strip()
             
             if text:
@@ -125,7 +126,12 @@ class HumorEntry:
             "gpt": "AI",
             "投资": "投资",
             "tax": "税务",
-            "fee": "手续费"
+            "fee": "手续费",
+            "产品经理": "产品经理",
+            "老板": "职场",
+            " dating": " dating",
+            "约会": " dating",
+            "父母": "家庭"
         }
         
         for keyword, tag in tag_map.items():
@@ -140,6 +146,63 @@ class HumorEntry:
             
         return suggestions
     
+    def suggest_topics(self) -> list:
+        """推荐适配的开放麦主题"""
+        content_lower = self.raw.lower()
+        topics = []
+        
+        # 主题映射
+        topic_keywords = {
+            "投资预期": ["polymarket", "crypto", "bitcoin", "交易", "fee", "tax", "投资"],
+            "职场吐槽": ["程序员", "产品经理", "老板", "加班", "需求"],
+            "AI时代": ["ai", "gpt", "chatgpt", "人工智能"],
+            " dating困境": [" dating", "约会", "单身", "tinder"],
+            "生活观察": ["通胀", "物价", "消费"]
+        }
+        
+        for topic, keywords in topic_keywords.items():
+            if any(kw in content_lower for kw in keywords):
+                topics.append(topic)
+        
+        return topics if topics else ["通用话题"]
+    
+    def analyze_structure(self) -> dict:
+        """分析笑点结构"""
+        structure = {
+            "形式": "",
+            "铺垫": "",
+            "笑点": "",
+            "节奏": ""
+        }
+        
+        if self.structured["dialogue"] and len(self.structured["dialogue"]) >= 2:
+            structure["形式"] = "对话递进"
+            structure["铺垫"] = self.structured["dialogue"][0]["content"][:50] if self.structured["dialogue"] else ""
+            structure["笑点"] = "层层叠加的成本吐槽"
+            structure["节奏"] = f"{len(self.structured['dialogue'])}轮递进"
+        else:
+            structure["形式"] = "单句"
+            structure["笑点"] = self.raw[:50]
+            
+        return structure
+    
+    def suggest_adaptation(self) -> str:
+        """改编建议"""
+        suggestions = []
+        
+        if self.structured["dialogue"]:
+            suggestions.append("保留对话形式，可删减为3-4轮保留节奏")
+            
+        topics = self.suggest_topics()
+        if "投资预期" in topics:
+            suggestions.append("可类比到：炒股/买房/创业等任何'看起来赚了实际亏了'的场景")
+            suggestions.append("开场：你们有没有觉得自己赚了钱...")
+            
+        elif "职场吐槽" in topics:
+            suggestions.append("可代入自身经历增强真实感")
+            
+        return " | ".join(suggestions) if suggestions else "可直接使用"
+    
     def suggest_notes(self) -> str:
         """智能推荐备注"""
         notes = []
@@ -153,16 +216,24 @@ class HumorEntry:
         return "；".join(notes) if notes else ""
     
     def format_preview(self) -> str:
-        """格式化预览"""
+        """格式化预览 - 开放麦优化版"""
+        structure = self.analyze_structure()
+        topics = self.suggest_topics()
+        
         lines = [
             "=" * 50,
-            "📋 幽默内容整理预览",
+            "🎤 开放麦素材整理",
             "=" * 50,
             "",
             f"📝 来源: {self.source}",
-            f"🏷️ 推荐标签: {', '.join(self.suggest_tags())}",
+            f"🏷️ 标签: {', '.join(self.suggest_tags())}",
+            f"🎯 适配主题: {', '.join(topics)}",
             "",
-            "📄 内容结构:",
+            "📊 笑点结构:",
+            f"  形式: {structure['形式']}",
+            f"  节奏: {structure['节奏']}",
+            "",
+            "📄 内容:",
             "-" * 40,
         ]
         
@@ -176,8 +247,11 @@ class HumorEntry:
         
         lines.extend([
             "",
-            "💡 备注建议:",
-            f"  {self.suggest_notes() or '无'}",
+            "🎭 改编建议:",
+            f"  {self.suggest_adaptation()}",
+            "",
+            "💡 备注:",
+            f"  {self.suggest_notes() or '可直接使用'}",
             "",
             "=" * 50,
         ])

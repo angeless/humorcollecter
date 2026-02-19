@@ -3,9 +3,11 @@ name: humor-collector
 description: 收集幽默内容并自动整理到Notion数据库，用于写段子或开放麦。支持文本、链接、图片等多种形式的内容归档。
 ---
 
-# 幽默感收集器 (Humor Collector)
+# 幽默感收集器 (Humor Collector) 🎤
 
-把看到的搞笑内容一键归档到Notion，积累写作素材库。
+> **为开放麦演员设计** —— 收集网络神回复，整理成可用的段子素材库。
+
+把看到的搞笑内容一键归档到Notion，积累写段子和开放麦的素材。
 
 ## 快速开始
 
@@ -27,52 +29,65 @@ export NOTION_TOKEN="secret_xxxxxxxx"  # Notion integration token
 export HUMOR_DATABASE_ID="30c994709f0b8000a284c25e1e8540a3"  # 你的Notion数据库ID
 ```
 
-## Notion数据库结构
+## Notion数据库结构（开放麦版）
 
 确保你的Notion数据库有以下字段：
 
 | 字段名 | 类型 | 说明 |
 |--------|------|------|
-| 内容 (Content) | Title | 幽默内容文本 |
-| 来源 (Source) | Select | 来源平台 |
+| 内容 (Content) | Title | 完整原文 |
+| 来源 (Source) | Select | Reddit/Twitter/小红书等 |
+| 适配主题 (Topics) | Multi-select | 投资预期/职场吐槽/AI时代/ dating困境等 |
+| 笑点结构 (Structure) | Select | 对话递进/单句/反转/Callback等 |
 | 标签 (Tags) | Multi-select | 分类标签 |
-| 状态 (Status) | Select | 待处理/已整理/已使用 |
+| 状态 (Status) | Select | 待整理/可用/已用/废弃 |
+| 改编建议 (Adaptation) | Rich Text | 如何改编成段子 |
 | 备注 (Notes) | Rich Text | 补充说明 |
 | 链接 (URL) | URL | 原始链接 |
 | 创建时间 (Created) | Date | 自动记录 |
 
-## 工作流
+## 开放麦工作流
 
 ```
-[发现好笑内容]
+[日常刷到神回复]
        ↓
-[执行 humor_cli.py preview]
+[humor_cli.py preview]  ← AI分析笑点结构
        ↓
-[AI自动整理结构]
+[预览输出]
+  ├─ 适配主题（投资预期/职场吐槽等）
+  ├─ 笑点结构（对话递进/反转等）
+  ├─ 改编建议（如何改成段子）
+  └─ 完整原文保留
        ↓
-[预览 → 确认 → 添加]
+[确认 → 添加到Notion]
        ↓
-[同步到Notion数据库]
+[写段子时按主题筛选]
        ↓
-[积累素材库 → 写段子/开放麦]
+[上台讲开放麦 🎤]
 ```
 
-### 整理示例
+### 实际案例：Polymarket段子
 
 ```bash
-# 发现Polymarket神评论
+# 1. 发现神评论
 python3 scripts/humor_cli.py preview \
   "Shot_Chance_9809: 我在Polymarket赚了$5..."
 
-# 输出:
-# 📋 幽默内容整理预览
-# 📝 来源: Reddit
-# 🏷️ 推荐标签: Polymarket, 手续费, Reddit神回复
-# 💡 备注建议: 对话形式，层层递进；预期管理/成本意识
+# 2. AI分析输出:
+# 🎯 适配主题: 投资预期
+# 📊 笑点结构: 对话递进, 9轮
+# 🎭 改编建议: 
+#    - 保留对话形式，删减为3-4轮
+#    - 可类比到炒股/买房/创业
+#    - 开场：你们有没有觉得自己赚了钱...
 
-# 确认无误后添加
-python3 scripts/humor_cli.py add \
-  "内容" --tags "Polymarket,交易" --notes "适合讲预期管理"
+# 3. 确认后添加到Notion
+python3 scripts/humor_cli.py add "[内容]" \
+  --tags "Polymarket,手续费" \
+  --notes "适合讲预期管理，可本土化改编"
+
+# 4. 写段子时搜索
+python3 scripts/search_humor.py --tag "投资预期"
 ```
 
 ## 脚本说明
