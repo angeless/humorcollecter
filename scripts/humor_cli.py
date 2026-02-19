@@ -67,21 +67,42 @@ class HumorEntry:
         return structured
     
     def _parse_thread(self, content: str) -> list:
-        """解析Reddit/论坛串"""
+        """解析Reddit/论坛串 - 按用户名分割"""
         lines = []
-        # 简单解析：按发言人分割
-        pattern = r'([\w\-_]+)\s*•\s*\d+d?\s*ago\s*(.*?)(?=\n[\w\-_]+\s*•|$)'
-        matches = re.findall(pattern, content, re.DOTALL)
         
-        for author, text in matches:
-            lines.append({
-                "author": author.strip(),
-                "content": text.strip(),
-                "type": "reply"
-            })
+        # Reddit格式: 用户名 • Xd ago 内容... u/下一个用户名
+        # 分割模式: 匹配 (u/)用户名 + 时间标记
+        import re
         
-        # 如果没有匹配到，按行分割
+        # 清理多余的avatar文本
+        content = re.sub(r'\s+avatar\s+', ' ', content)
+        
+        # 找到所有发言位置
+        # 模式: 可选的u/ + 用户名 + 可选的avatar + • + 时间 + ago
+        pattern = r'(?:u/)?([\w\-_]+)(?:\s+avatar)?\s*•\s*(\d+d?\s*ago)'
+        matches = list(re.finditer(pattern, content))
+        
+        for i, match in enumerate(matches):
+            author = match.group(1)
+            start_pos = match.end()
+            end_pos = matches[i + 1].start() if i + 1 < len(matches) else len(content)
+            text = content[start_pos:end_pos].strip()
+            
+            # 清理投票标记
+            text = re.sub(r'\s*Upvote\s*\d+\s*Downvote\s*Reply\s*', ' ', text)
+            text = re.sub(r'\s*More replies\s*', ' ', text)
+            text = text.strip()
+            
+            if text:
+                lines.append({
+                    "author": author,
+                    "content": text,
+                    "type": "reply"
+                })
+        
+        # 如果没匹配到，按原始方式处理
         if not lines:
+            # 简单按行分割
             for line in content.split('\n'):
                 line = line.strip()
                 if line and len(line) > 10:
@@ -129,9 +150,6 @@ class HumorEntry:
         if "fee" in self.raw.lower() or "税" in self.raw:
             notes.append("预期管理/成本意识")
             
-        if len(self.raw) > 200:
-            notes.append("需要精简改编")
-            
         return "；".join(notes) if notes else ""
     
     def format_preview(self) -> str:
@@ -149,14 +167,12 @@ class HumorEntry:
         ]
         
         if self.structured["dialogue"]:
-            for i, item in enumerate(self.structured["dialogue"][:5], 1):
+            for i, item in enumerate(self.structured["dialogue"], 1):
                 author = f"[{item['author']}] " if item['author'] else ""
-                content = item['content'][:80] + "..." if len(item['content']) > 80 else item['content']
+                content = item['content']
                 lines.append(f"  {i}. {author}{content}")
-            if len(self.structured["dialogue"]) > 5:
-                lines.append(f"  ... 还有 {len(self.structured['dialogue']) - 5} 条回复")
         else:
-            lines.append(f"  {self.structured['punchline'][:100]}")
+            lines.append(f"  {self.structured['punchline']}")
         
         lines.extend([
             "",
@@ -174,11 +190,8 @@ class HumorEntry:
         final_tags = list(set((tags or []) + self.suggest_tags()))
         final_notes = notes or self.suggest_notes()
         
-        # 构建结构化内容
-        if self.structured["dialogue"]:
-            content_text = self._format_dialogue_for_notion()
-        else:
-            content_text = self.structured["punchline"]
+        # 构建结构化内容 - 保留完整原文
+        content_text = self.raw
         
         properties = {
             "内容": {"title": [{"text": {"content": content_text[:100]}}]},
